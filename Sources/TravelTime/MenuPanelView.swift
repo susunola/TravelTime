@@ -20,6 +20,12 @@ struct MenuPanelView: View {
             ZoneListView(palette: palette)
                 .frame(maxHeight: .infinity)
 
+            if store.showCalendar {
+                CalendarCardView(palette: palette)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+            }
+
             DividerView(palette: palette)
                 .padding(.horizontal, 12)
 

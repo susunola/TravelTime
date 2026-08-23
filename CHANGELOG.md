@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Calendar card (阳历 + 农历).** The panel now shows today's full solar date
+  and weekday alongside the Chinese lunar date (干支年 / 月 / 日) and the
+  current solar term, plus a 7-column month mini-grid with each day's lunar
+  label and today highlighted. Shown by default; toggle in *Settings →
+  Display* with "Show calendar (阳历 + 农历)". The lunar conversion is a
+  classic 16-bit `lunarInfo` table covering 1900–2100, generated and
+  byte-verified against the 6tail astronomical oracle (73,384 days, 0
+  mismatches; all 24 solar terms per year match).
 - `LICENSE` (MIT). The README had declared MIT since v1.3.0, but the file was
   missing, so GitHub reported the repository as unlicensed.
 - `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, and issue / pull request

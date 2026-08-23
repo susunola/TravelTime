@@ -36,6 +36,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // immediately on toggle instead of waiting for the next minute tick.
             self?.statusItem?.button?.title = " " + (self?.store.menuBarText ?? "")
         }
+        store.onCalendarChanged = { [weak self] in
+            // The card adds/removes a fixed block; re-measure after the next
+            // layout pass so the hosting view's fittingSize reflects the new
+            // content height.
+            DispatchQueue.main.async { self?.updatePanelHeight() }
+        }
         store.chooseAvatar = { [weak self] in
             self?.chooseAvatarFile()
         }
@@ -105,7 +111,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let hosting = panel.contentView, hosting.fittingSize.height > 0 {
             natural = hosting.fittingSize.height
         } else {
-            natural = Self.panelContentHeight(zoneCount: store.zones.count, theme: store.theme)
+            var base = Self.panelContentHeight(zoneCount: store.zones.count, theme: store.theme)
+            // Fallback path (before first layout): the calendar card adds a
+            // fixed block of vertical space on top of the chrome estimate.
+            if store.showCalendar { base += 140 }
+            natural = base
         }
         let wanted = min(max(natural, 460), maxPanelContentHeight)
         let width = panel.frame.width

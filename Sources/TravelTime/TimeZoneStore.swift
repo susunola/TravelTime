@@ -108,6 +108,13 @@ final class TimeZoneStore: ObservableObject {
             onMenuBarConfigChanged()
         }
     }
+    /// Whether the panel shows the 阳历+农历 calendar card (default on).
+    @Published var showCalendar: Bool {
+        didSet {
+            defaults.set(showCalendar, forKey: Self.showCalendarKey)
+            onCalendarChanged()
+        }
+    }
     @Published var theme: Theme {
         didSet {
             defaults.set(theme.rawValue, forKey: Self.themeKey)
@@ -143,6 +150,11 @@ final class TimeZoneStore: ObservableObject {
     /// refreshes immediately instead of waiting for the next minute tick.
     var onMenuBarConfigChanged: () -> Void = {}
 
+    /// Injected by AppDelegate: called when the calendar card is toggled so the
+    /// panel window can re-measure its height (the card adds/removes a fixed
+    /// block of vertical space).
+    var onCalendarChanged: () -> Void = {}
+
     /// Whether the main panel is currently on screen. Gates the 30 s
     /// auto-timezone poll so a background app does not fork a process
     /// every half minute while unused.
@@ -159,6 +171,7 @@ final class TimeZoneStore: ObservableObject {
     private static let currentZoneUUIDKey = "currentZoneUUID.v1"
     private static let showDateKey = "pref.showDate"
     private static let use24HourKey = "pref.use24Hour"
+    private static let showCalendarKey = "pref.showCalendar"
     private static let themeKey = "pref.theme"
     private var autoTimezoneMonitor: AnyCancellable?
     /// How often the app re-probes the location (seconds). 30 minutes: cheap,
@@ -246,6 +259,7 @@ final class TimeZoneStore: ObservableObject {
         }
         showDateInMenuBar = defaults.object(forKey: Self.showDateKey) as? Bool ?? false
         use24Hour = defaults.object(forKey: Self.use24HourKey) as? Bool ?? true
+        showCalendar = defaults.object(forKey: Self.showCalendarKey) as? Bool ?? true
         theme = Theme(rawValue: defaults.string(forKey: Self.themeKey) ?? "") ?? .minimal
         // Restore the highlighted row. Prefer the persisted uuid (so a
         // Frankfurt row stays highlighted after restart even though Berlin

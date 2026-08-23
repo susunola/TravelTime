@@ -155,6 +155,7 @@ private struct CategoryDisplay: View {
 
     var body: some View {
         SettingsForm {
+            Toggle("Show calendar (阳历 + 农历)", isOn: $store.showCalendar)
             Toggle("Show date in the menu bar", isOn: $store.showDateInMenuBar)
             Picker("Time format", selection: $store.use24Hour) {
                 Text("24-hour").tag(true)
