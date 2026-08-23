@@ -9,10 +9,13 @@ struct MenuPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HeaderView(palette: palette)
-                .padding(.horizontal, 16)
-                .padding(.top, 18)
-                .padding(.bottom, 14)
+            // Calendar card on top; the time/avatar header moves to the bottom.
+            if store.showCalendar {
+                CalendarCardView(palette: palette)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 14)
+                    .padding(.bottom, 4)
+            }
 
             DividerView(palette: palette)
                 .padding(.horizontal, 12)
@@ -20,11 +23,12 @@ struct MenuPanelView: View {
             ZoneListView(palette: palette)
                 .frame(maxHeight: .infinity)
 
-            if store.showCalendar {
-                CalendarCardView(palette: palette)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-            }
+            DividerView(palette: palette)
+                .padding(.horizontal, 12)
+
+            HeaderView(palette: palette)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
 
             DividerView(palette: palette)
                 .padding(.horizontal, 12)

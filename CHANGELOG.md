@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Panel layout:** the calendar card now sits at the top of the panel and the
+  time / avatar header moves to the bottom (above the footer), so the date is
+  the first thing you see.
+
 ### Added
 - **Calendar card (阳历 + 农历).** The panel now shows today's full solar date
   and weekday alongside the Chinese lunar date (干支年 / 月 / 日) and the
