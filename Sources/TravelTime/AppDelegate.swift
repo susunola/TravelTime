@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: NSWindowController?
     private var timerCancellable: AnyCancellable?
     private let store = TimeZoneStore()
+    private let eventStore = EventStore()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         store.openSettings = { [weak self] in
@@ -40,6 +41,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // The card adds/removes a fixed block; re-measure after the next
             // layout pass so the hosting view's fittingSize reflects the new
             // content height.
+            DispatchQueue.main.async { self?.updatePanelHeight() }
+        }
+        store.onEventsChanged = { [weak self] in
+            // Importing events or selecting a day changes the events list
+            // height; re-measure after layout so the window fits the content.
             DispatchQueue.main.async { self?.updatePanelHeight() }
         }
         store.chooseAvatar = { [weak self] in
@@ -180,7 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         p.minSize = NSSize(width: 360, height: 460)
         p.setContentSize(NSSize(width: width, height: height))
 
-        let hosting = NSHostingView(rootView: MenuPanelView().environmentObject(store))
+        let hosting = NSHostingView(rootView: MenuPanelView().environmentObject(store).environmentObject(eventStore))
         hosting.frame = NSRect(x: 0, y: 0, width: width, height: height)
         hosting.autoresizingMask = [.width, .height]
         p.contentView = hosting
@@ -242,7 +248,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        let host = NSHostingController(rootView: SettingsView().environmentObject(store))
+        let host = NSHostingController(rootView: SettingsView().environmentObject(store).environmentObject(eventStore))
         let window = NSWindow(contentViewController: host)
         window.title = "TravelTime Settings"
         window.setContentSize(NSSize(width: 480, height: 460))

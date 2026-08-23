@@ -115,12 +115,23 @@ final class TimeZoneStore: ObservableObject {
             onCalendarChanged()
         }
     }
+    /// Whether the calendar card shows imported ICS events (default on).
+    @Published var showEvents: Bool {
+        didSet {
+            defaults.set(showEvents, forKey: Self.showEventsKey)
+            onEventsChanged()
+        }
+    }
     @Published var theme: Theme {
         didSet {
             defaults.set(theme.rawValue, forKey: Self.themeKey)
             onThemeChanged()    // window height depends on the theme's row height
         }
     }
+
+    /// Convenience palette for the current theme, so any view can read
+    /// `store.palette` without recomputing it.
+    var palette: ThemePalette { ThemePalette.palette(for: theme) }
 
     /// Injected by AppDelegate: opens the settings window
     var openSettings: () -> Void = {}
@@ -155,6 +166,11 @@ final class TimeZoneStore: ObservableObject {
     /// block of vertical space).
     var onCalendarChanged: () -> Void = {}
 
+    /// Injected by AppDelegate: called when ICS events are imported/removed or
+    /// the selected day in the calendar changes, so the panel can re-measure
+    /// its height (the events list below the grid grows/shrinks).
+    var onEventsChanged: () -> Void = {}
+
     /// Whether the main panel is currently on screen. Gates the 30 s
     /// auto-timezone poll so a background app does not fork a process
     /// every half minute while unused.
@@ -172,6 +188,7 @@ final class TimeZoneStore: ObservableObject {
     private static let showDateKey = "pref.showDate"
     private static let use24HourKey = "pref.use24Hour"
     private static let showCalendarKey = "pref.showCalendar"
+    private static let showEventsKey = "pref.showEvents"
     private static let themeKey = "pref.theme"
     private var autoTimezoneMonitor: AnyCancellable?
     /// How often the app re-probes the location (seconds). 30 minutes: cheap,
@@ -260,6 +277,7 @@ final class TimeZoneStore: ObservableObject {
         showDateInMenuBar = defaults.object(forKey: Self.showDateKey) as? Bool ?? false
         use24Hour = defaults.object(forKey: Self.use24HourKey) as? Bool ?? true
         showCalendar = defaults.object(forKey: Self.showCalendarKey) as? Bool ?? true
+        showEvents = defaults.object(forKey: Self.showEventsKey) as? Bool ?? true
         theme = Theme(rawValue: defaults.string(forKey: Self.themeKey) ?? "") ?? .minimal
         // Restore the highlighted row. Prefer the persisted uuid (so a
         // Frankfurt row stays highlighted after restart even though Berlin

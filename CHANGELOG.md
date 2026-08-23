@@ -5,7 +5,7 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.0] — 2026-08-23
 
 ### Changed
 - **Panel layout:** the calendar card now sits at the top of the panel and the
@@ -21,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   classic 16-bit `lunarInfo` table covering 1900–2100, generated and
   byte-verified against the 6tail astronomical oracle (73,384 days, 0
   mismatches; all 24 solar terms per year match).
+- **Import `.ics` calendars (events on the panel).** *Settings → Display* now
+  has an **Import .ics…** button and an **Imported calendars** list (file name,
+  event count, per-source delete). Dropping one or more `.ics` files onto the
+  calendar card also imports them. Imported events appear as a dot under the
+  day in the month mini-grid; tapping a day reveals that day's agenda below the
+  grid. Recurring events (`RRULE` with `DAILY` / `WEEKLY` / `MONTHLY` /
+  `YEARLY`, plus `INTERVAL`, `COUNT`, `UNTIL`, `BYDAY`, `BYMONTH`) are expanded
+  in-app across the visible month. Sources are stored in
+  `~/Library/Application Support/TravelTime/events.json`, and there is a
+  "Show events (ICS)" toggle. Nine `EventStore` unit tests cover parsing
+  (line unfolding, text escaping, all-day vs. timed, `TZID` / UTC / `Z`), RRULE
+  expansion, and occurrence queries.
 - `LICENSE` (MIT). The README had declared MIT since v1.3.0, but the file was
   missing, so GitHub reported the repository as unlicensed.
 - `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, and issue / pull request
@@ -184,7 +196,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release as TimeZoneBar: `NSStatusItem` menu bar clock, multiple time
   zones, one-click system time zone switching, and IP-based location detection.
 
-[Unreleased]: https://github.com/susunola/TravelTime/compare/v1.3.3...HEAD
+[1.5.0]: https://github.com/susunola/TravelTime/releases/tag/v1.5.0
 [1.3.3]: https://github.com/susunola/TravelTime/releases/tag/v1.3.3
 [1.3.2]: https://github.com/susunola/TravelTime/releases/tag/v1.3.2
 [1.3.1]: https://github.com/susunola/TravelTime/releases/tag/v1.3.1

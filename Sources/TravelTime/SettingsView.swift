@@ -1,5 +1,6 @@
 import SwiftUI
 import ServiceManagement
+import UniformTypeIdentifiers
 
 /// macOS System Settings–style window: sidebar of 6 categories on the left,
 /// detail page on the right. The user's last-selected category is persisted.
@@ -152,6 +153,8 @@ private struct CategoryGeneral: View {
 
 private struct CategoryDisplay: View {
     @EnvironmentObject var store: TimeZoneStore
+    @EnvironmentObject var eventStore: EventStore
+    @State private var showImporter = false
 
     var body: some View {
         SettingsForm {
@@ -162,7 +165,62 @@ private struct CategoryDisplay: View {
                 Text("12-hour").tag(false)
             }
             .pickerStyle(.menu)
+
+            Divider()
+
+            Toggle("Show events (ICS)", isOn: $store.showEvents)
+            Button("Import .ics…") { showImporter = true }
+                .fileImporter(
+                    isPresented: $showImporter,
+                    allowedContentTypes: [UTType(filenameExtension: "ics") ?? .data],
+                    allowsMultipleSelection: true
+                ) { result in
+                    switch result {
+                    case .success(let urls):
+                        importFiles(urls)
+                    case .failure:
+                        break
+                    }
+                }
+
+            if !eventStore.sources.isEmpty {
+                Divider()
+                Text("Imported calendars").font(.system(size: 12, weight: .medium))
+                    .foregroundColor(store.palette.textSecondary)
+                ForEach(eventStore.sources) { source in
+                    HStack {
+                        Image(systemName: "calendar")
+                            .foregroundColor(store.palette.accent)
+                        Text(source.fileName)
+                            .foregroundColor(store.palette.textPrimary)
+                        Spacer(minLength: 0)
+                        Text("\(source.events.count)")
+                            .font(.system(size: 11))
+                            .foregroundColor(store.palette.textTertiary)
+                        Button(action: { removeSource(source.id) }) {
+                            Image(systemName: "trash")
+                                .foregroundColor(store.palette.textTertiary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
         }
+    }
+
+    private func importFiles(_ urls: [URL]) {
+        for url in urls {
+            let secured = url.startAccessingSecurityScopedResource()
+            defer { if secured { url.stopAccessingSecurityScopedResource() } }
+            guard let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            let count = eventStore.importICS(text, fileName: url.lastPathComponent)
+            if count > 0 { store.onEventsChanged() }
+        }
+    }
+
+    private func removeSource(_ id: UUID) {
+        eventStore.removeSource(id: id)
+        store.onEventsChanged()
     }
 }
 
