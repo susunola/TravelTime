@@ -21,6 +21,10 @@ system time zone when you land.
 
 ---
 
+<p align="center">
+  <img src="docs/screenshots/traveltime-1.8.13.png" alt="TravelTime 1.8.13 world clocks interface" width="520">
+</p>
+
 ## Why
 
 Most world-clock utilities show you what time it is elsewhere. The tedious part
