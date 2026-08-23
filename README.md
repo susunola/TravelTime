@@ -23,9 +23,9 @@ system time zone when you land.
 
 <table>
   <tr>
-    <td width="33%"><img src="docs/screenshots/traveltime-1.8.13.png" alt="TravelTime World clocks tab"></td>
-    <td width="33%"><img src="docs/screenshots/traveltime-calendar-1.8.13.png" alt="TravelTime Calendar tab"></td>
-    <td width="33%"><img src="docs/screenshots/traveltime-meeting-planner-1.8.13.png" alt="TravelTime Meeting planner tab"></td>
+    <td width="33%"><img src="docs/screenshots/traveltime-world-clocks-1.8.13.jpg" alt="TravelTime World clocks tab"></td>
+    <td width="33%"><img src="docs/screenshots/traveltime-calendar-1.8.13.jpg" alt="TravelTime Calendar tab"></td>
+    <td width="33%"><img src="docs/screenshots/traveltime-meeting-planner-1.8.13.jpg" alt="TravelTime Meeting planner tab"></td>
   </tr>
   <tr>
     <td align="center"><b>World clocks</b></td>
