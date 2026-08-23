@@ -4,10 +4,10 @@
 
 # TravelTime
 
-**A native macOS menu bar clock for people who work across time zones.**
+**A native macOS world clock, calendar, and meeting planner for people who work across time zones.**
 
-Track any number of cities at a glance, and switch your Mac's system time zone
-with a single click when you land.
+Track any number of cities at a glance, then select and confirm a new macOS
+system time zone when you land.
 
 [![CI](https://github.com/susunola/TravelTime/actions/workflows/ci.yml/badge.svg)](https://github.com/susunola/TravelTime/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/susunola/TravelTime?sort=semver)](https://github.com/susunola/TravelTime/releases)
@@ -15,7 +15,7 @@ with a single click when you land.
 [![Swift](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white)](https://swift.org)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-[Install](#install) · [Features](#features) · [Themes](#themes) · [Build](#build-from-source) · [How it works](#how-it-works) · [FAQ](#faq)
+[Install](#install) · [Features](#features) · [Usage](#usage) · [Build](#build-from-source) · [How it works](#how-it-works) · [FAQ](#faq)
 
 </div>
 
@@ -26,47 +26,27 @@ with a single click when you land.
 Most world-clock utilities show you what time it is elsewhere. The tedious part
 of actually travelling is the other direction: you land, and your Mac is still
 on the time zone you left. TravelTime keeps both halves in one place — a
-multi-zone panel to read, and a one-click switch to act on.
+multi-zone panel to read, and a safe, confirmed switch to act on.
 
-No dependencies, no Electron, no telemetry, no account. One ~700 KB binary.
+No Electron, no telemetry, no account, and no runtime third-party dependencies.
+The release binary is about 2 MB.
 
 ## Features
 
 | | |
 |---|---|
-| **Multi-zone panel** | Local time in the menu bar, all tracked cities in the panel. Each row is labelled Today / Yesterday / Tomorrow relative to your system zone, so you never do the mental date arithmetic. |
-| **One-click zone switching** | Click a row to move your entire Mac to that zone. Uses the standard macOS authorization dialog — no password is ever stored or seen by the app. |
-| **Day/night at a glance** | A sun or moon per row, computed from a solar-elevation approximation, tells you whether it is a reasonable hour to call. |
-| **DST badge** | Zones currently on daylight saving time are tagged, so a shifted offset is never a surprise. |
-| **Live zone management** | Hover a row to replace or remove it; add from 24 preset cities. The panel grows or shrinks to fit the list. Duplicate IANA IDs are handled correctly — Berlin and Frankfurt can coexist as separate rows. |
+| **World clocks** | Local time in the menu bar and every tracked city in a clean panel. Each row shows Today / Yesterday / Tomorrow relative to the selected system zone, plus its live UTC offset. |
+| **Safe zone switching** | Select a city, then confirm with the Switch button. TravelTime uses the standard macOS authorization dialog; your password is never stored or seen by the app. |
+| **Searchable city picker** | Add from common cities or search the full macOS IANA time-zone catalogue. Duplicate IANA IDs are handled correctly — Berlin and Frankfurt can coexist as separate rows. |
+| **Adaptive panel** | The window grows with normal content, keeps its footer fixed, hides native scroll tracks, and only scrolls the middle region when the display is genuinely too short. |
 | **IP geolocation** | "Detect current location" resolves your city and zone, previews it, and switches on confirmation. |
 | **Conflict detection** | If macOS *Set time zone automatically* is on, it will silently revert manual switches. The panel warns you and deep-links to the relevant System Settings pane. |
-| **Four themes** | Minimal, Glass, Midnight, Editorial — switchable at runtime from Settings → Appearance. |
 | **Custom avatar** | Drop in any image; stored under `~/Library/Application Support/TravelTime/`. |
 | **In-app updates** | Checks GitHub Releases and verifies the download against a SHA-256 published in the release notes before installing. Works for both the current and the legacy `TimeZoneBar.app`-named assets. |
 | **Meeting-time planner** | Move a time slider and see the corresponding time and working-hours status across every saved city. |
-| **Public holidays** | Enable bundled offline holidays for China, Hong Kong, Singapore, Malaysia, and Thailand. No account, API key, or network connection is required. |
-
-## Themes
-
-<table>
-<tr>
-<td width="50%"><img src="docs/screenshots/theme-minimal.png" alt="Minimal theme"></td>
-<td width="50%"><img src="docs/screenshots/theme-glass.png" alt="Glass theme"></td>
-</tr>
-<tr>
-<td align="center"><b>Minimal</b> — flat rows, hairline dividers</td>
-<td align="center"><b>Glass</b> — card surfaces, generous spacing</td>
-</tr>
-<tr>
-<td width="50%"><img src="docs/screenshots/theme-midnight.png" alt="Midnight theme"></td>
-<td width="50%"><img src="docs/screenshots/theme-editorial.png" alt="Editorial theme"></td>
-</tr>
-<tr>
-<td align="center"><b>Midnight</b> — dark, cyan accent</td>
-<td align="center"><b>Editorial</b> — serif display type, quote-led</td>
-</tr>
-</table>
+| **Solar + lunar calendar** | Browse months with Gregorian dates, Chinese lunar dates, solar terms, today/selection states, and event markers in a complete six-week grid. |
+| **ICS calendars** | Import `.ics` files, expand common recurring-event rules, mark event days, and inspect the selected day's agenda. |
+| **Offline public holidays** | Enable bundled 2026 holidays for China, Hong Kong, Singapore, Malaysia, and Thailand. Region-colored dots distinguish overlapping holidays, and each holiday includes a concise explanation. No API key, account, or network connection is required. |
 
 ## Requirements
 
@@ -127,15 +107,16 @@ installed by existing users.
 | Action | Result |
 |---|---|
 | Click the Dock icon (or the menu bar clock) | Show / hide the panel |
-| Click a zone row | Switch the system time zone (authorization required) |
-| Hover a row → ↻ | Replace that row with another city |
-| Hover a row → ✕ | Remove that row (the current zone cannot be removed) |
-| **Add time zone ⌄** | Add from 24 preset cities |
+| Click a zone row | Select it and reveal the Switch action |
+| **Switch to _city_** | Change the macOS system time zone (authorization required) |
+| Right-click a zone row | Switch to or remove that city (the current zone cannot be removed) |
+| **Add city** | Search common cities or the complete IANA time-zone catalogue |
 | **Detect current location** | IP geolocation → preview → confirm to switch |
 | Click the avatar | Choose a custom image |
-| Settings → Appearance | Switch theme |
+| **Calendar** tab | Browse Gregorian/lunar dates and inspect events or holidays |
+| **Meeting planner** tab | Compare a candidate time and working-hours status across cities |
 | Settings → Software Update | Check GitHub Releases and update in place |
-| Settings → Calendar & Holidays | Enable offline holiday calendars by country or region |
+| Settings → Calendar & Holidays | Import `.ics` calendars and enable offline holidays by region |
 | Settings → Uninstall | Remove the app and all local data |
 | **Quit TravelTime** | Quit |
 
@@ -144,8 +125,13 @@ installed by existing users.
 ```
 main.swift            NSApplication bootstrap
 AppDelegate.swift     status item, panel window, 1 Hz tick (repaints on minute change)
-MenuPanelView.swift   SwiftUI panel + ThemePalette (4 themes)
-SettingsView.swift    preferences, theme picker, updater UI, uninstall
+MenuPanelView.swift   three-tab SwiftUI panel, adaptive content, shared footer
+PanelHeader.swift     current time, displayed-zone date, avatar, rotating quote
+CalendarCardView.swift Gregorian/lunar month grid and event/holiday details
+EventStore.swift      ICS parsing, recurrence expansion, persistence, queries
+HolidayStore.swift    bundled offline holiday catalogue and region selection
+SettingsView.swift    preferences, cities, calendars, updater, uninstall
+ZonePicker.swift      searchable common-city and IANA time-zone picker
 TimeZoneStore.swift   @MainActor state, persistence, solar day/night, DST, day-offset
 SystemZoneSwitcher    privileged `systemsetup -settimezone` via osascript
 LocationDetector      IP geolocation with fallback endpoint
@@ -180,6 +166,12 @@ Design notes worth knowing before you touch the code:
   reporting `Active = 1` long after the setting was turned off.
 - **The minute tick is deduplicated.** The 1 Hz timer only publishes when the
   minute actually changes, collapsing 60 redraws per minute into one.
+- **Public holidays are bundled data.** They never call timeanddate or another
+  holiday API. Enabled regions are materialized as local all-day event sources;
+  the current catalogue covers 2026 and is refreshed through app updates.
+- **Calendar markers preserve provenance.** Holiday source names carry a stable
+  region code, which drives the same low-saturation color in Settings, month
+  markers, and event details. Imported ICS calendars use the app accent.
 
 ## Known limitations
 
@@ -191,6 +183,9 @@ Documented rather than hidden:
   the equator. Good enough for a badge, not for astronomy.
 - **IP geolocation is city-level at best**, and wrong on VPNs. Pick the zone
   manually when it matters.
+- **Bundled public-holiday coverage currently ends in 2026.** Install a newer
+  TravelTime release when a later catalogue becomes available. Malaysia data
+  contains federal holidays only; state-only holidays are omitted.
 
 ## FAQ
 
