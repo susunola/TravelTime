@@ -21,9 +21,18 @@ system time zone when you land.
 
 ---
 
-<p align="center">
-  <img src="docs/screenshots/traveltime-1.8.13.png" alt="TravelTime 1.8.13 world clocks interface" width="520">
-</p>
+<table>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/traveltime-1.8.13.png" alt="TravelTime World clocks tab"></td>
+    <td width="33%"><img src="docs/screenshots/traveltime-calendar-1.8.13.png" alt="TravelTime Calendar tab"></td>
+    <td width="33%"><img src="docs/screenshots/traveltime-meeting-planner-1.8.13.png" alt="TravelTime Meeting planner tab"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>World clocks</b></td>
+    <td align="center"><b>Calendar</b></td>
+    <td align="center"><b>Meeting planner</b></td>
+  </tr>
+</table>
 
 ## Why
 
