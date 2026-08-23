@@ -36,8 +36,20 @@ struct EventOccurrence: Identifiable {
     let end: Date
     let summary: String
     let location: String
+    let notes: String
     let sourceName: String
     let isAllDay: Bool
+
+    /// Bundled holiday sources end in a stable `[country-code]` suffix.
+    /// User-imported calendars deliberately return nil and use the neutral
+    /// calendar accent instead of pretending to belong to a region.
+    var holidayCountryCode: String? {
+        guard sourceName.hasPrefix("Holidays · "),
+              let open = sourceName.lastIndex(of: "["),
+              sourceName.hasSuffix("]") else { return nil }
+        let code = sourceName[sourceName.index(after: open)..<sourceName.index(before: sourceName.endIndex)]
+        return code.isEmpty ? nil : String(code).lowercased()
+    }
 }
 
 // MARK: - Recurrence rule
@@ -484,10 +496,15 @@ final class EventStore: ObservableObject {
     }
 
     private func load() {
-        guard let url = Self.eventsFileURL(),
-              let data = try? Data(contentsOf: url),
-              let decoded = try? JSONDecoder().decode([ImportedEvent].self, from: data) else { return }
-        sources = decoded
+        guard let url = Self.eventsFileURL() else { return }
+        let candidates = [url, url.appendingPathExtension("backup")]
+        for candidate in candidates {
+            if let data = try? Data(contentsOf: candidate),
+               let decoded = try? JSONDecoder().decode([ImportedEvent].self, from: data) {
+                sources = decoded
+                return
+            }
+        }
     }
 
     private func save() {
@@ -495,6 +512,11 @@ final class EventStore: ObservableObject {
         guard let url = Self.eventsFileURL() else { return }
         do {
             let data = try JSONEncoder().encode(sources)
+            if FileManager.default.fileExists(atPath: url.path) {
+                let backup = url.appendingPathExtension("backup")
+                try? FileManager.default.removeItem(at: backup)
+                try? FileManager.default.copyItem(at: url, to: backup)
+            }
             try data.write(to: url, options: .atomic)
         } catch {
             NSLog("EventStore save failed: \(error.localizedDescription)")
@@ -519,6 +541,18 @@ final class EventStore: ObservableObject {
         save()
     }
 
+    func replaceHolidaySource(country: HolidayCountry, events: [CalendarEvent]) {
+        let fileName = "Holidays · \(country.name) [\(country.id)]"
+        sources.removeAll { $0.fileName.hasSuffix("[\(country.id)]") }
+        sources.append(ImportedEvent(fileName: fileName, events: events))
+        save()
+    }
+
+    func removeHolidaySources(countryCode: String) {
+        sources.removeAll { $0.fileName.hasSuffix("[\(countryCode)]") }
+        save()
+    }
+
     // MARK: queries
 
     /// All occurrences that start within `[from, to)`.
@@ -536,6 +570,7 @@ final class EventStore: ObservableObject {
                             result.append(EventOccurrence(
                                 start: occStart, end: occEnd,
                                 summary: ev.summary, location: ev.location,
+                                notes: ev.notes,
                                 sourceName: source.fileName, isAllDay: ev.isAllDay
                             ))
                         }

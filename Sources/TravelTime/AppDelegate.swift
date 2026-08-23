@@ -21,15 +21,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var timerCancellable: AnyCancellable?
     private let store = TimeZoneStore()
     private let eventStore = EventStore()
+    private let holidayStore = HolidayStore()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         store.openSettings = { [weak self] in
             self?.openSettingsWindow()
         }
         store.onZonesChanged = { [weak self] in
-            self?.updatePanelHeight()
-        }
-        store.onThemeChanged = { [weak self] in
             self?.updatePanelHeight()
         }
         store.onMenuBarConfigChanged = { [weak self] in
@@ -43,11 +41,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // content height.
             DispatchQueue.main.async { self?.updatePanelHeight() }
         }
+        store.onCalendarDetailChanged = { [weak self] in
+            DispatchQueue.main.async { self?.updatePanelHeight() }
+        }
         store.onEventsChanged = { [weak self] in
             // Importing events or selecting a day changes the events list
             // height; re-measure after layout so the window fits the content.
             DispatchQueue.main.async { self?.updatePanelHeight() }
         }
+        // Refresh enabled offline calendars on every catalogue upgrade, not
+        // only after the user happens to open Settings.
+        holidayStore.installEnabledHolidays(into: eventStore)
         store.chooseAvatar = { [weak self] in
             self?.chooseAvatarFile()
         }
@@ -86,18 +90,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// footer (~150), with extra allowance for the editorial header layout.
     /// Pass `maxContentHeight` to clamp against the visible screen; without it
     /// (tests) the raw formula is returned.
-    static func panelContentHeight(zoneCount: Int, theme: Theme, maxContentHeight: CGFloat? = nil) -> CGFloat {
-        let fixedChrome: CGFloat = theme == .editorial ? 400 : 360
-        let wanted = max(460, fixedChrome + CGFloat(zoneCount) * theme.rowHeight + 24)
+    static func panelContentHeight(zoneCount: Int, eventDetailCount: Int = 0,
+                                   calendarVisible: Bool = false,
+                                   maxContentHeight: CGFloat? = nil) -> CGFloat {
+        // Includes header, tabs, footer and the always-present “Add time zone”
+        // row. The old 292-point estimate omitted that final row, so a normal
+        // five-zone list overflowed by almost exactly one row.
+        // Include the 16-point traffic-light safe inset applied by the root
+        // view; omitting it pushed the footer below the window edge.
+        let fixedChrome: CGFloat = 366
+        let visibleRows = min(max(eventDetailCount, 0), 3)
+        let clockHeight = max(560, fixedChrome + CGFloat(zoneCount) * 58)
+        // 780 pt fits the header, tabs, a six-week month grid and the empty
+        // state without leaving a large dead zone above the shared footer.
+        // When events exist, their detail rows add the space they need below.
+        // the empty-state row), and the footer. Further event rows grow from
+        // that baseline instead of stealing space from the calendar grid.
+        // The first detail row includes title, region and a two-line holiday
+        // explanation. Additional rows reserve the same readable footprint.
+        let firstEventExpansion: CGFloat = visibleRows > 0 ? 34 : 0
+        let calendarHeight: CGFloat = 770 + firstEventExpansion
+            + CGFloat(max(visibleRows - 1, 0)) * 56
+        let wanted = calendarVisible ? calendarHeight : clockHeight
         guard let cap = maxContentHeight else { return wanted }
-        return min(wanted, max(460, cap))
+        return min(wanted, max(560, cap))
     }
 
     /// Largest content height that fits on the visible screen (menu bar and
     /// Dock excluded), leaving room for the title bar and a small margin.
     private var maxPanelContentHeight: CGFloat {
         guard let visible = NSScreen.main?.visibleFrame else { return .greatestFiniteMagnitude }
-        return max(460, visible.height - 60)
+        // Use the actual screen instead of a hard 760 pt cap. Calendar event
+        // details should grow the window until it genuinely reaches the
+        // display boundary; only then does the inner ScrollView take over.
+        return max(560, visible.height - 40)
     }
 
     /// Grows / shrinks the window so it exactly fits the number of zone rows.
@@ -105,25 +131,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // setupPanel may not have run yet (e.g. a zones change during init),
         // so guard the implicit-unwrapped window.
         guard let panel = self.panel else { return }
-        // Prefer the hosting view's natural content height over a hardcoded
-        // chrome estimate — this tracks the real header/footer/row layout (and
-        // theme differences) instead of the magic 360/400 constants in
-        // panelContentHeight. fittingSize can read 0 before the first layout,
-        // so fall back to the formula in that case.
-        let natural: CGFloat
-        // contentView is NSView?; fittingSize is an NSView property, so just
-        // unwrap it (NSHostingView is generic over its content and can't be
-        // inferred here, but the optional unwrap is all we need).
-        if let hosting = panel.contentView, hosting.fittingSize.height > 0 {
-            natural = hosting.fittingSize.height
-        } else {
-            var base = Self.panelContentHeight(zoneCount: store.zones.count, theme: store.theme)
-            // Fallback path (before first layout): the calendar card adds a
-            // fixed block of vertical space on top of the chrome estimate.
-            if store.showCalendar { base += 140 }
-            natural = base
-        }
-        let wanted = min(max(natural, 460), maxPanelContentHeight)
+        let wanted = Self.panelContentHeight(zoneCount: store.zones.count,
+                                             eventDetailCount: store.calendarEventDetailCount,
+                                             calendarVisible: store.isCalendarSectionActive,
+                                             maxContentHeight: maxPanelContentHeight)
         let width = panel.frame.width
         panel.setContentSize(NSSize(width: width, height: wanted))
         panel.layoutIfNeeded()
@@ -169,24 +180,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let width: CGFloat = 400
         let height: CGFloat = 640
 
-        // utilityWindow style: this is the combination the user has confirmed
-        // actually renders on this machine. Borderless NSPanel and any
-        // titlebar-true variants get blocked by the macOS 26 FrontBoard
-        // scene fence for self-signed (no Team ID) apps.
+        // Keep a real titled window for reliable LaunchServices registration,
+        // but extend content beneath its transparent title bar. This preserves
+        // native traffic-light controls while avoiding a separate white title
+        // strip, matching modern first-party macOS apps.
         let p = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: width, height: height),
-            styleMask: [.titled, .closable, .resizable, .utilityWindow],
+            styleMask: [.titled, .closable, .resizable, .utilityWindow, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         p.title = "TravelTime"
+        p.titleVisibility = .hidden
+        p.titlebarAppearsTransparent = true
+        p.titlebarSeparatorStyle = .none
+        p.isMovableByWindowBackground = true
+        p.backgroundColor = NSColor(red: 247 / 255, green: 248 / 255, blue: 244 / 255, alpha: 1)
         p.level = .normal
         p.hidesOnDeactivate = false
         p.isReleasedWhenClosed = false
-        p.minSize = NSSize(width: 360, height: 460)
-        p.setContentSize(NSSize(width: width, height: height))
+        p.minSize = NSSize(width: 420, height: 560)
+        p.maxSize = NSSize(width: 520, height: maxPanelContentHeight)
+        p.setContentSize(NSSize(width: 460, height: max(560, height)))
 
-        let hosting = NSHostingView(rootView: MenuPanelView().environmentObject(store).environmentObject(eventStore))
+        let hosting = NSHostingView(rootView: MenuPanelView()
+            .environmentObject(store)
+            .environmentObject(eventStore)
+            .environmentObject(holidayStore))
         hosting.frame = NSRect(x: 0, y: 0, width: width, height: height)
         hosting.autoresizingMask = [.width, .height]
         p.contentView = hosting
@@ -248,15 +268,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        let host = NSHostingController(rootView: SettingsView().environmentObject(store).environmentObject(eventStore))
+        let host = NSHostingController(rootView: SettingsView()
+            .environmentObject(store)
+            .environmentObject(eventStore)
+            .environmentObject(holidayStore))
         let window = NSWindow(contentViewController: host)
         window.title = "TravelTime Settings"
-        window.setContentSize(NSSize(width: 480, height: 460))
+        window.setContentSize(NSSize(width: 760, height: 600))
         // `.resizable` is required for the user to drag the edges to resize —
         // the main panel uses the same mask. Without it, the window is fixed-size.
         // `.resizable` requires `.titled`, which is already present.
-        window.styleMask = [.titled, .closable, .resizable]
-        window.minSize = NSSize(width: 480, height: 460)
+        window.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        window.isMovableByWindowBackground = true
+        window.minSize = NSSize(width: 700, height: 540)
         window.center()
         let controller = NSWindowController(window: window)
         controller.showWindow(nil)

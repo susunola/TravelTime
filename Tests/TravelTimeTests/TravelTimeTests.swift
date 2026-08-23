@@ -265,21 +265,48 @@ final class TravelTimeTests: XCTestCase {
     /// The sizing rule is now a pure function; these pin it down.
     @MainActor
     func testPanelContentHeightScalesWithZoneCount() {
-        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 3, theme: .minimal), 540)
-        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 12, theme: .minimal), 1008)
-        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 3, theme: .midnight), 540)
-    }
-
-    @MainActor
-    func testPanelContentHeightEditorialUsesMoreChrome() {
-        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 3, theme: .editorial), 622)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 3), 560)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 5), 656)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 12), 1062)
     }
 
     @MainActor
     func testPanelContentHeightHasMinimum() {
         // Even a single zone must not collapse below the header+footer floor.
-        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 0, theme: .minimal), 460)
-        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 1, theme: .minimal), 460)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 0), 560)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 1), 560)
+    }
+
+    @MainActor
+    func testPanelContentHeightExpandsForCalendarEvents() {
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 3, eventDetailCount: 0), 560)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 3, eventDetailCount: 0,
+                                                       calendarVisible: true), 770)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 3, eventDetailCount: 1,
+                                                       calendarVisible: true), 804)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 3, eventDetailCount: 3,
+                                                       calendarVisible: true), 916)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 3, eventDetailCount: 8,
+                                                       calendarVisible: true), 916)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 3, eventDetailCount: 3,
+                                                       calendarVisible: true,
+                                                       maxContentHeight: 640), 640)
+    }
+
+    func testHolidayOccurrenceExtractsRegionCode() {
+        let holiday = EventOccurrence(start: Date(), end: Date(), summary: "Holiday",
+                                      location: "", notes: "Description",
+                                      sourceName: "Holidays · Singapore [sg]",
+                                      isAllDay: true)
+        let imported = EventOccurrence(start: Date(), end: Date(), summary: "Meeting",
+                                       location: "", notes: "", sourceName: "Work.ics", isAllDay: false)
+        XCTAssertEqual(holiday.holidayCountryCode, "sg")
+        XCTAssertNil(imported.holidayCountryCode)
+        XCTAssertEqual(Set(HolidayCountry.common.map(\.accentHex)).count,
+                       HolidayCountry.common.count)
+        XCTAssertFalse(BundledHolidayCatalog.briefDescription(for:
+            BundledHoliday(countryCode: "th", date: "2026-04-13", name: "Songkran Festival",
+                           localName: "", note: "")).isEmpty)
     }
 
     // MARK: - App bundle discovery (Updater)
@@ -347,13 +374,13 @@ final class TravelTimeTests: XCTestCase {
     /// unpredictably. The clamp must be explicit, never below the 460 pt floor.
     @MainActor
     func testPanelContentHeightClampsToScreen() {
-        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 12, theme: .glass, maxContentHeight: 900), 900)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 12, maxContentHeight: 900), 900)
         // Small lists are unaffected by the cap.
-        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 3, theme: .minimal, maxContentHeight: 900), 540)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 3, maxContentHeight: 900), 560)
         // The cap never pushes the window below the header+footer floor.
-        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 12, theme: .glass, maxContentHeight: 200), 460)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 12, maxContentHeight: 200), 560)
         // No cap: raw formula (existing behaviour, existing tests).
-        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 12, theme: .minimal), 1008)
+        XCTAssertEqual(AppDelegate.panelContentHeight(zoneCount: 12), 1062)
     }
 
     // MARK: - Geolocation response shapes (LocationDetector)

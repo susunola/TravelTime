@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict>
+	<dict>
+		<key>CFBundleDevelopmentRegion</key>
+		<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>TravelTime</string>
 	<key>CFBundleExecutable</key>
@@ -10,16 +12,18 @@
 	<string>AppIcon</string>
 	<!-- Keep com.atom.tzbar. Changing it would orphan every UserDefaults key
 	     (zones, theme, current zone, avatar) and reset the app to defaults. -->
-	<key>CFBundleIdentifier</key>
-	<string>com.atom.tzbar</string>
+		<key>CFBundleIdentifier</key>
+		<string>com.atom.tzbar</string>
+		<key>CFBundleInfoDictionaryVersion</key>
+		<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>TravelTime</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.5.0</string>
+	<string>1.8.13</string>
 	<key>CFBundleVersion</key>
-	<string>12</string>
+	<string>30</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>

@@ -45,12 +45,14 @@ if [ -d "Resources" ]; then
     done
 fi
 
-echo "==> 3/4 Code signing (self-signed certificate: 'TravelTime Developer')"
-codesign --force --sign "TravelTime Developer" --options runtime --identifier com.atom.tzbar "$APP"
+SIGN_IDENTITY=${SIGN_IDENTITY:-TravelTime Developer}
+echo "==> 3/4 Code signing ($SIGN_IDENTITY)"
+codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp --identifier com.atom.tzbar "$APP"
 
 echo "==> 4/4 Verifying"
 plutil -lint "$APP/Contents/Info.plist"
 codesign --verify --deep --strict "$APP" && echo "Signature verified"
+scripts/verify_release.sh "$APP"
 
 echo "==> 5/4 Deploying to /Applications (single source of truth)"
 # Match the running app's binary exactly — a bare -f "$NAME" would kill any
@@ -80,6 +82,15 @@ if [ "${1:-}" = "release" ]; then
     mkdir -p release
     rm -f "$ZIP"
     ditto -c -k --sequesterRsrc --keepParent "/Applications/$NAME.app" "$ZIP"
+    if [ -n "${APPLE_KEYCHAIN_PROFILE:-}" ]; then
+        echo "  notarizing with keychain profile: $APPLE_KEYCHAIN_PROFILE"
+        xcrun notarytool submit "$ZIP" --keychain-profile "$APPLE_KEYCHAIN_PROFILE" --wait
+        xcrun stapler staple "/Applications/$NAME.app"
+        xcrun stapler validate "/Applications/$NAME.app"
+        ditto -c -k --sequesterRsrc --keepParent "/Applications/$NAME.app" "$ZIP"
+    else
+        echo "  notarization skipped (set APPLE_KEYCHAIN_PROFILE for public distribution)"
+    fi
     HASH=$(shasum -a 256 "$ZIP" | awk '{print $1}')
     echo "  zip: $ZIP"
     echo "  SHA256: $HASH"

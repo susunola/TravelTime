@@ -29,16 +29,49 @@ struct HeaderView: View {
     }
 
     var body: some View {
-        if store.theme == .editorial {
-            editorialBody
-        } else {
-            HStack(alignment: .center, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .bottom, spacing: 14) {
+                Text(store.timeString(for: store.currentZoneIdentifier))
+                    .font(.system(size: 39, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .tracking(-1.2)
+                    .foregroundColor(palette.textPrimary)
+                Spacer(minLength: 12)
+                VStack(alignment: .trailing, spacing: 4) {
+                    HStack(spacing: 5) {
+                        Circle().fill(palette.accent).frame(width: 7, height: 7)
+                        Text(current?.label ?? "Current")
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundColor(palette.accent)
+                    }
+                    Text("UTC\(TimeZoneStore.offsetString(for: store.currentZoneIdentifier))")
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundColor(palette.textSecondary)
+                }
+            }
+            HStack {
+                Text(dateText)
+                Spacer()
+                let lunar = ChineseLunarCalendar.summary(for: store.now, calendar: displayedCalendar)
+                Text("\(lunar.monthText)\(lunar.dayText)\(lunar.solarTerm.map { " · \($0)" } ?? "")")
+            }
+            .font(.system(size: 10.5, weight: .medium))
+            .foregroundColor(palette.textSecondary)
+
+            HStack(spacing: 11) {
                 AvatarView(palette: palette)
                 QuoteView(palette: palette)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                timeStack
             }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(palette.surface))
         }
+    }
+
+    private var displayedCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: store.currentZoneIdentifier) ?? .current
+        return calendar
     }
 
     // Editorial: avatar + label on top, big serif time, quote below
@@ -131,8 +164,8 @@ struct QuoteView: View {
     var body: some View {
         let text = palette.quoteHasMarks ? "「\(quote)」" : quote
         Text(text)
-            .font(.system(size: palette.quoteHasMarks ? 14 : 12,
-                          weight: .medium,
+            .font(.system(size: palette.quoteHasMarks ? 13 : 11.5,
+                          weight: .regular,
                           design: palette.quoteIsSerif ? .serif : .default))
             .italic()
             .foregroundColor(palette.textSecondary)
@@ -161,18 +194,18 @@ struct AvatarView: View {
         } label: {
             ZStack {
                 Circle()
-                    .fill(store.theme == .midnight ? palette.surface : Color.primary.opacity(0.06))
-                    .frame(width: 64, height: 64)
+                    .fill(Color.primary.opacity(0.06))
+                    .frame(width: 54, height: 54)
                 if let img = nsImage {
                     Image(nsImage: img)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 56, height: 56)
+                        .frame(width: 48, height: 48)
                         .clipShape(Circle())
                         .overlay(Circle().stroke(Color.white.opacity(0.6), lineWidth: 1.5))
                 } else {
                     Image(systemName: isDay ? "sun.max.fill" : "moon.stars.fill")
-                        .font(.system(size: 24))
+                        .font(.system(size: 20))
                         .foregroundColor(isDay ? Color.orange : Color.indigo)
                 }
                 // Bottom corners: day/night indicator (left) + camera hint (right).
@@ -192,7 +225,7 @@ struct AvatarView: View {
                             .background(Circle().fill(Color.black.opacity(0.55)))
                     }
                 }
-                .frame(width: 64, height: 64)
+                .frame(width: 54, height: 54)
             }
         }
         .buttonStyle(.plain)

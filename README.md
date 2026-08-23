@@ -44,6 +44,8 @@ No dependencies, no Electron, no telemetry, no account. One ~700 KB binary.
 | **Four themes** | Minimal, Glass, Midnight, Editorial — switchable at runtime from Settings → Appearance. |
 | **Custom avatar** | Drop in any image; stored under `~/Library/Application Support/TravelTime/`. |
 | **In-app updates** | Checks GitHub Releases and verifies the download against a SHA-256 published in the release notes before installing. Works for both the current and the legacy `TimeZoneBar.app`-named assets. |
+| **Meeting-time planner** | Move a time slider and see the corresponding time and working-hours status across every saved city. |
+| **Public holidays** | Enable bundled offline holidays for China, Hong Kong, Singapore, Malaysia, and Thailand. No account, API key, or network connection is required. |
 
 ## Themes
 
@@ -133,6 +135,7 @@ installed by existing users.
 | Click the avatar | Choose a custom image |
 | Settings → Appearance | Switch theme |
 | Settings → Software Update | Check GitHub Releases and update in place |
+| Settings → Calendar & Holidays | Enable offline holiday calendars by country or region |
 | Settings → Uninstall | Remove the app and all local data |
 | **Quit TravelTime** | Quit |
 

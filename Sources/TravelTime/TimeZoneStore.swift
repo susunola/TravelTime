@@ -46,37 +46,6 @@ struct DetectedZone: Equatable {
     var country: String
 }
 
-// MARK: - Theme
-
-enum Theme: String, CaseIterable, Identifiable {
-    case minimal
-    case glass
-    case midnight
-    case editorial
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .minimal: return "Minimal"
-        case .glass: return "Glass"
-        case .midnight: return "Midnight"
-        case .editorial: return "Editorial"
-        }
-    }
-
-    /// Row height in points — single source of truth for both the palette and
-    /// the auto-resizing window (AppDelegate.updatePanelHeight).
-    var rowHeight: CGFloat {
-        switch self {
-        case .minimal: return 52
-        case .glass: return 82
-        case .midnight: return 52
-        case .editorial: return 66
-        }
-    }
-}
-
 @MainActor
 final class TimeZoneStore: ObservableObject {
     @Published var zones: [ZoneEntry] {
@@ -96,6 +65,16 @@ final class TimeZoneStore: ObservableObject {
     @Published var lastError: String?
     @Published var detected: DetectedZone?
     @Published var isDetecting = false
+    /// Number of event rows currently revealed below the calendar. AppDelegate
+    /// uses it to grow the panel before the calendar falls back to scrolling.
+    @Published var calendarEventDetailCount = 0 {
+        didSet { if calendarEventDetailCount != oldValue { onCalendarDetailChanged() } }
+    }
+    /// The panel needs a taller baseline while the month calendar is visible:
+    /// all six possible week rows plus one event/empty-state row must fit.
+    @Published var isCalendarSectionActive = false {
+        didSet { if isCalendarSectionActive != oldValue { onCalendarDetailChanged() } }
+    }
 
     // Persisted display preferences
     @Published var showDateInMenuBar: Bool {
@@ -122,16 +101,14 @@ final class TimeZoneStore: ObservableObject {
             onEventsChanged()
         }
     }
-    @Published var theme: Theme {
+    var palette: ThemePalette { .current }
+
+    @Published var automaticLocationDetection: Bool {
         didSet {
-            defaults.set(theme.rawValue, forKey: Self.themeKey)
-            onThemeChanged()    // window height depends on the theme's row height
+            defaults.set(automaticLocationDetection, forKey: Self.automaticLocationKey)
+            automaticLocationDetection ? startPeriodicLocationDetection() : stopPeriodicLocationDetection()
         }
     }
-
-    /// Convenience palette for the current theme, so any view can read
-    /// `store.palette` without recomputing it.
-    var palette: ThemePalette { ThemePalette.palette(for: theme) }
 
     /// Injected by AppDelegate: opens the settings window
     var openSettings: () -> Void = {}
@@ -154,7 +131,6 @@ final class TimeZoneStore: ObservableObject {
 
     /// Injected by AppDelegate: called when the theme changes so the window can
     /// recompute its height (row height differs per theme).
-    var onThemeChanged: () -> Void = {}
 
     /// Injected by AppDelegate: called whenever the menu bar title inputs
     /// (show-date toggle, 12/24-hour format) change, so the status item
@@ -165,6 +141,7 @@ final class TimeZoneStore: ObservableObject {
     /// panel window can re-measure its height (the card adds/removes a fixed
     /// block of vertical space).
     var onCalendarChanged: () -> Void = {}
+    var onCalendarDetailChanged: () -> Void = {}
 
     /// Injected by AppDelegate: called when ICS events are imported/removed or
     /// the selected day in the calendar changes, so the panel can re-measure
@@ -189,7 +166,8 @@ final class TimeZoneStore: ObservableObject {
     private static let use24HourKey = "pref.use24Hour"
     private static let showCalendarKey = "pref.showCalendar"
     private static let showEventsKey = "pref.showEvents"
-    private static let themeKey = "pref.theme"
+    private static let themeKey = "pref.theme" // retired; removed during migration
+    private static let automaticLocationKey = "privacy.automaticLocationDetection"
     private var autoTimezoneMonitor: AnyCancellable?
     /// How often the app re-probes the location (seconds). 30 minutes: cheap,
     /// infrequent, and keeps the confirmation card fresh for travellers.
@@ -278,7 +256,10 @@ final class TimeZoneStore: ObservableObject {
         use24Hour = defaults.object(forKey: Self.use24HourKey) as? Bool ?? true
         showCalendar = defaults.object(forKey: Self.showCalendarKey) as? Bool ?? true
         showEvents = defaults.object(forKey: Self.showEventsKey) as? Bool ?? true
-        theme = Theme(rawValue: defaults.string(forKey: Self.themeKey) ?? "") ?? .minimal
+        automaticLocationDetection = defaults.object(forKey: Self.automaticLocationKey) as? Bool ?? false
+        // TravelTime now has one intentional visual identity. Migrate users
+        // from the retired experimental themes and discard the old choice.
+        defaults.removeObject(forKey: Self.themeKey)
         // Restore the highlighted row. Prefer the persisted uuid (so a
         // Frankfurt row stays highlighted after restart even though Berlin
         // shares its IANA id); fall back to the first row matching the id.
@@ -299,7 +280,7 @@ final class TimeZoneStore: ObservableObject {
         // autoTimezoneEnabled keeps its default false; refreshed asynchronously below
         refreshAutoTimezoneFlag()
         startAutoTimezoneMonitoring()
-        startPeriodicLocationDetection()
+        if automaticLocationDetection { startPeriodicLocationDetection() }
     }
 
     /// Drops the current-row pointer when its row was deleted / replaced by
@@ -619,8 +600,11 @@ final class TimeZoneStore: ObservableObject {
             } catch {
                 lastError = error.localizedDescription
             }
-            isSwitching = false
             completion?(success)
+            // Keep the operation marked in-flight until completion has applied
+            // any dependent state (for example appending a newly detected city).
+            // This prevents observers from seeing a half-finished successful switch.
+            isSwitching = false
         }
     }
 
@@ -676,6 +660,7 @@ final class TimeZoneStore: ObservableObject {
     /// card in the panel. The system time zone only changes when the user
     /// confirms (that path is admin-gated).
     func autoDetectOnLaunch() {
+        guard automaticLocationDetection else { return }
         detectLocation(silentIfMatchesCurrent: true)
     }
 

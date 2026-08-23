@@ -28,6 +28,7 @@ struct CalendarCardView: View {
     @State private var referenceDate: Date = Date()
     /// The day whose details and events are shown (tap to change).
     @State private var viewedDate: Date = Date()
+    @State private var showAllEvents = false
 
     private var referenceComps: DateComponents {
         calendar.dateComponents([.year, .month], from: referenceDate)
@@ -52,8 +53,13 @@ struct CalendarCardView: View {
         calendar.dateComponents([.year, .month, .day], from: store.now)
     }
 
-    private var markedDays: Set<Int> {
-        eventStore.daysWithEvents(in: referenceDate, calendar: calendar)
+    private var monthOccurrencesByDay: [Int: [EventOccurrence]] {
+        let comps = calendar.dateComponents([.year, .month], from: referenceDate)
+        guard let first = calendar.date(from: DateComponents(year: comps.year, month: comps.month, day: 1)),
+              let next = calendar.date(byAdding: .month, value: 1, to: first) else { return [:] }
+        return Dictionary(grouping: eventStore.occurrences(from: first, to: next, calendar: calendar)) {
+            calendar.component(.day, from: $0.start)
+        }
     }
 
     private var viewedEvents: [EventOccurrence] {
@@ -152,18 +158,18 @@ struct CalendarCardView: View {
 
             // Events for the viewed day
             if store.showEvents {
-                Divider().background(palette.hairline)
+                Divider().background(palette.hairline).padding(.top, 2)
                 if viewedEvents.isEmpty {
                     Text("暂无安排")
                         .font(.system(size: 11))
                         .foregroundColor(palette.textTertiary)
-                        .padding(.vertical, 2)
+                        .padding(.vertical, 6)
                 } else {
                     VStack(alignment: .leading, spacing: 6) {
-                        ForEach(viewedEvents) { o in
+                        ForEach(showAllEvents ? viewedEvents : Array(viewedEvents.prefix(3))) { o in
                             HStack(alignment: .top, spacing: 8) {
                                 Circle()
-                                    .fill(palette.accent)
+                                    .fill(eventColor(o))
                                     .frame(width: 6, height: 6)
                                     .padding(.top, 5)
                                 VStack(alignment: .leading, spacing: 2) {
@@ -175,17 +181,37 @@ struct CalendarCardView: View {
                                             .font(.system(size: 11))
                                             .foregroundColor(palette.textSecondary)
                                     }
+                                    if o.holidayCountryCode != nil, !o.notes.isEmpty {
+                                        Text(o.notes.replacingOccurrences(of: "\n", with: " · "))
+                                            .font(.system(size: 10))
+                                            .foregroundColor(palette.textTertiary)
+                                            .lineLimit(2)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
                                 }
                                 Spacer(minLength: 0)
                             }
                         }
+                        if viewedEvents.count > 3 && !showAllEvents {
+                            Button("Show \(viewedEvents.count - 3) more") { showAllEvents = true }
+                                .buttonStyle(.plain)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(palette.accent)
+                        }
                     }
+                    .padding(.top, 2)
+                    .padding(.bottom, 8)
                 }
             }
         }
         .padding(12)
         .background(palette.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .onAppear { store.calendarEventDetailCount = viewedEvents.count }
+        .onDisappear { store.calendarEventDetailCount = 0 }
+        .onChange(of: viewedEvents.count) { _, count in
+            store.calendarEventDetailCount = count
+        }
         .onDrop(of: [.fileURL], isTargeted: nil) { providers -> Bool in
             guard let provider = providers.first else { return false }
             _ = provider.loadObject(ofClass: URL.self) { url, _ in
@@ -206,7 +232,8 @@ struct CalendarCardView: View {
         let isViewed = calendar.component(.year, from: viewedDate) == referenceComps.year
             && calendar.component(.month, from: viewedDate) == referenceComps.month
             && calendar.component(.day, from: viewedDate) == cell.day
-        let hasEvent = store.showEvents && markedDays.contains(cell.day)
+        let dayEvents = store.showEvents ? (monthOccurrencesByDay[cell.day] ?? []) : []
+        let markerColors = uniqueMarkerColors(for: dayEvents)
 
         return Button(action: { selectDay(cell.day) }) {
             VStack(spacing: 1) {
@@ -231,10 +258,13 @@ struct CalendarCardView: View {
                     .foregroundColor(cell.isToday ? palette.window.opacity(0.85) : palette.textTertiary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
-                if hasEvent {
-                    Circle()
-                        .fill(palette.accent)
-                        .frame(width: 4, height: 4)
+                if !markerColors.isEmpty {
+                    HStack(spacing: 2) {
+                        ForEach(Array(markerColors.prefix(3).enumerated()), id: \.offset) { _, color in
+                            Circle().fill(color).frame(width: 4, height: 4)
+                        }
+                    }
+                    .frame(height: 4)
                 } else {
                     Color.clear.frame(width: 4, height: 4)
                 }
@@ -245,12 +275,30 @@ struct CalendarCardView: View {
         .buttonStyle(.plain)
     }
 
+    private func eventColor(_ occurrence: EventOccurrence) -> Color {
+        guard let code = occurrence.holidayCountryCode,
+              let country = HolidayCountry.common.first(where: { $0.id == code }) else {
+            return palette.accent
+        }
+        return Color(hex: country.accentHex)
+    }
+
+    private func uniqueMarkerColors(for occurrences: [EventOccurrence]) -> [Color] {
+        var seen: Set<String> = []
+        return occurrences.compactMap { occurrence in
+            let key = occurrence.holidayCountryCode ?? "imported"
+            guard seen.insert(key).inserted else { return nil }
+            return eventColor(occurrence)
+        }
+    }
+
     private func selectDay(_ day: Int) {
         guard let date = calendar.date(from: DateComponents(year: referenceComps.year,
                                                             month: referenceComps.month,
                                                             day: day)) else { return }
         viewedDate = date
-        store.onEventsChanged()
+        showAllEvents = false
+        store.calendarEventDetailCount = viewedEvents.count
     }
 
     private func stepPrevMonth() {

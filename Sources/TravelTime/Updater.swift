@@ -156,13 +156,20 @@ final class Updater: ObservableObject {
                 state = .error("Could not unzip the installer")
                 return
             }
+            if let validationError = await Task.detached(priority: .userInitiated, operation: {
+                Self.validate(app: newApp, expectedVersion: release.tag_name)
+            }).value {
+                state = .error("Installer validation failed: \(validationError)")
+                return
+            }
             // With admin rights: remove the old app, copy the new one, relaunch.
             // Install to the CURRENT bundle's location, not a hardcoded path,
             // so an app living in ~/Applications updates in place instead of
             // spawning a second copy in /Applications.
             let appPath = Bundle.main.bundlePath
+            let backupPath = appPath + ".backup"
             let script = """
-            do shell script "rm -rf " & quoted form of "\(appPath)" & " && cp -R " & quoted form of "\(newApp.path)" & " " & quoted form of "\(appPath)" & " && open " & quoted form of "\(appPath)" with administrator privileges
+            do shell script "set -e; rm -rf " & quoted form of "\(backupPath)" & "; mv " & quoted form of "\(appPath)" & " " & quoted form of "\(backupPath)" & "; if cp -R " & quoted form of "\(newApp.path)" & " " & quoted form of "\(appPath)" & "; then open " & quoted form of "\(appPath)" & "; rm -rf " & quoted form of "\(backupPath)" & "; else mv " & quoted form of "\(backupPath)" & " " & quoted form of "\(appPath)" & "; exit 1; fi" with administrator privileges
             """
             try await PrivilegedRunner.run(script: script)
             // Clean up the download/unzip scratch dir before relaunching.
@@ -247,5 +254,27 @@ final class Updater: ObservableObject {
             return current
         }
         return bundles.sorted { $0.lastPathComponent < $1.lastPathComponent }.first
+    }
+
+    /// Reject malformed or wrong-product archives before replacing the app.
+    nonisolated static func validate(app: URL, expectedVersion: String) -> String? {
+        let infoURL = app.appendingPathComponent("Contents/Info.plist")
+        guard let data = try? Data(contentsOf: infoURL),
+              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+              plist["CFBundleIdentifier"] as? String == "com.atom.tzbar",
+              let version = plist["CFBundleShortVersionString"] as? String else {
+            return "wrong bundle identifier or missing Info.plist"
+        }
+        let expected = expectedVersion.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+        guard version == expected else { return "version \(version) does not match release \(expected)" }
+        let executable = app.appendingPathComponent("Contents/MacOS/TravelTime")
+        guard FileManager.default.isExecutableFile(atPath: executable.path) else {
+            return "main executable is missing"
+        }
+        let check = Process()
+        check.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        check.arguments = ["--verify", "--deep", "--strict", app.path]
+        do { try check.run(); check.waitUntilExit() } catch { return "could not verify code signature" }
+        return check.terminationStatus == 0 ? nil : "code signature is invalid"
     }
 }

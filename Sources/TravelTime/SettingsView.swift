@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 /// detail page on the right. The user's last-selected category is persisted.
 struct SettingsView: View {
     @EnvironmentObject var store: TimeZoneStore
-    @State private var category: SettingsCategory = .display
+    @State private var category: SettingsCategory = .preferences
 
     private static let categoryKey = "settings.category"
 
@@ -50,23 +50,20 @@ struct SettingsView: View {
                     .tag(cat)
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 280)
+            .navigationSplitViewColumnWidth(min: 160, ideal: 176, max: 190)
         } detail: {
             // Detail: the selected category.
             Group {
                 switch category {
-                case .general:    CategoryGeneral()
-                case .display:    CategoryDisplay()
-                case .timeZones:  CategoryTimeZones()
-                case .appearance: CategoryAppearance()
-                case .update:     CategoryUpdate()
-                case .uninstall:  CategoryUninstall()
-                case .about:      CategoryAbout()
+                case .preferences: PreferencesPage()
+                case .cities: CitiesPage()
+                case .calendar: CalendarHolidaysPage()
+                case .about: AboutPage()
                 }
             }
-            .frame(minWidth: 480, minHeight: 460)
+            .frame(minWidth: 520, minHeight: 520)
         }
-        .navigationTitle("TravelTime Settings")
+        .tint(store.palette.accent)
         .onAppear {
             // Restore the last selected category.
             if let raw = UserDefaults.standard.string(forKey: Self.categoryKey),
@@ -83,31 +80,133 @@ struct SettingsView: View {
 /// Sidebar categories. The raw value is persisted so the user's last
 /// selected category is restored on the next launch.
 enum SettingsCategory: String, CaseIterable, Identifiable {
-    case general, display, timeZones, appearance, update, uninstall, about
+    case preferences, cities, calendar, about
     var id: Self { self }
 
     var title: String {
         switch self {
-        case .general:    return "General"
-        case .display:    return "Display"
-        case .timeZones:  return "Time Zones"
-        case .appearance: return "Appearance"
-        case .update:     return "Software Update"
-        case .uninstall:  return "Uninstall"
-        case .about:      return "About"
+        case .preferences: return "Preferences"
+        case .cities: return "Cities & Time Zones"
+        case .calendar: return "Calendar & Holidays"
+        case .about: return "About"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .general:    return "gearshape"
-        case .display:    return "rectangle.on.rectangle"
-        case .timeZones:  return "globe"
-        case .appearance: return "paintbrush"
-        case .update:     return "arrow.down.circle"
-        case .uninstall:  return "trash"
-        case .about:      return "info.circle"
+        case .preferences: return "slider.horizontal.3"
+        case .cities: return "globe.asia.australia.fill"
+        case .calendar: return "calendar"
+        case .about: return "info.circle"
         }
+    }
+}
+
+private struct PreferencesPage: View {
+    var body: some View {
+        SettingsPage(title: "Preferences", subtitle: "Choose how TravelTime looks and behaves.") {
+            SettingsSection(title: "General") { CategoryGeneral() }
+        }
+    }
+}
+
+private struct CitiesPage: View {
+    var body: some View {
+        SettingsPage(title: "Cities & Time Zones", subtitle: "Manage the cities shown in your world clock.") {
+            SettingsSection(title: "Your cities") { CategoryTimeZones() }
+        }
+    }
+}
+
+private struct CalendarHolidaysPage: View {
+    var body: some View {
+        SettingsPage(title: "Calendar & Holidays", subtitle: "Control calendar display, imported events, and public holidays.") {
+            SettingsSection(title: "Calendar") { CategoryDisplay() }
+            SettingsSection(title: "Public holidays") { CategoryHolidays() }
+        }
+    }
+}
+
+private struct AboutPage: View {
+    var body: some View {
+        SettingsPage(title: "About TravelTime", subtitle: "Version information, updates, and app management.") {
+            SettingsSection(title: "TravelTime") { CategoryAbout() }
+            SettingsSection(title: "Software update") { CategoryUpdate() }
+            SettingsSection(title: "Danger zone", isDestructive: true) { CategoryUninstall() }
+        }
+    }
+}
+
+private struct CategoryHolidays: View {
+    @EnvironmentObject var holidayStore: HolidayStore
+    @EnvironmentObject var eventStore: EventStore
+    @EnvironmentObject var store: TimeZoneStore
+
+    var body: some View {
+        SettingsForm {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Offline public holidays").font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Text("\(BundledHolidayCatalog.edition) edition")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Capsule().fill(Color.primary.opacity(0.05)))
+            }
+            Text("Choose the countries and regions you want to see. Holiday data is included with TravelTime and works without an account, API key, or internet connection.")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+
+            if !BundledHolidayCatalog.covers(year: Calendar.current.component(.year, from: Date())) {
+                Label("This calendar does not cover the current year. Update TravelTime for newer holiday data.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.orange)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 9).fill(Color.orange.opacity(0.09)))
+            }
+
+            Divider()
+
+            ForEach(Array(HolidayCountry.common.enumerated()), id: \.element.id) { index, country in
+                let regionColor = Color(hex: country.accentHex)
+                HStack(spacing: 12) {
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(regionColor)
+                            .frame(width: 9, height: 9)
+                            .frame(width: 18)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(country.localName).font(.system(size: 13, weight: .medium))
+                            Text("\(country.name) · \(country.id.uppercased())")
+                                .font(.system(size: 10)).foregroundColor(.secondary)
+                        }
+                    }
+                    Spacer(minLength: 24)
+                    Toggle("", isOn: enabledBinding(for: country))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(regionColor)
+                }
+                .frame(maxWidth: .infinity)
+                if index < HolidayCountry.common.count - 1 { Divider() }
+            }
+
+            Text("Coverage: \(BundledHolidayCatalog.coverageYears.lowerBound)–\(BundledHolidayCatalog.coverageYears.upperBound). Malaysia includes federal holidays only. Holiday definitions are refreshed with TravelTime updates.")
+                .font(.system(size: 11)).foregroundColor(.secondary)
+        }
+        .onAppear {
+            holidayStore.installEnabledHolidays(into: eventStore)
+            store.onEventsChanged()
+        }
+    }
+
+    private func enabledBinding(for country: HolidayCountry) -> Binding<Bool> {
+        Binding(get: { holidayStore.isEnabled(country) }, set: { enabled in
+            holidayStore.setEnabled(enabled, country: country, eventStore: eventStore)
+            store.onEventsChanged()
+        })
     }
 }
 
@@ -119,6 +218,11 @@ private struct CategoryGeneral: View {
 
     var body: some View {
         SettingsForm {
+            Toggle("Automatic location detection", isOn: $store.automaticLocationDetection)
+            Text("When enabled, TravelTime periodically contacts ipwho.is or ipapi.co to suggest your current time zone. It never changes the system time zone without confirmation.")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+            Divider()
             if Bundle.main.bundleIdentifier != nil {
                 Toggle("Launch at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, newValue in
@@ -156,6 +260,10 @@ private struct CategoryDisplay: View {
     @EnvironmentObject var eventStore: EventStore
     @State private var showImporter = false
 
+    private var importedSources: [ImportedEvent] {
+        eventStore.sources.filter { !$0.fileName.hasPrefix("Holidays · ") }
+    }
+
     var body: some View {
         SettingsForm {
             Toggle("Show calendar (阳历 + 农历)", isOn: $store.showCalendar)
@@ -183,11 +291,11 @@ private struct CategoryDisplay: View {
                     }
                 }
 
-            if !eventStore.sources.isEmpty {
+            if !importedSources.isEmpty {
                 Divider()
                 Text("Imported calendars").font(.system(size: 12, weight: .medium))
                     .foregroundColor(store.palette.textSecondary)
-                ForEach(eventStore.sources) { source in
+                ForEach(importedSources) { source in
                     HStack {
                         Image(systemName: "calendar")
                             .foregroundColor(store.palette.accent)
@@ -288,45 +396,6 @@ private struct CategoryTimeZones: View {
             Button("Restore Defaults") {
                 store.zones = TimeZoneStore.defaultZones
             }
-        }
-    }
-}
-
-private struct CategoryAppearance: View {
-    @EnvironmentObject var store: TimeZoneStore
-
-    var body: some View {
-        SettingsForm {
-            // NOTE: .pickerStyle(.menu) only reads the Text inside each option
-            // as the menu item title — any other views (ThemeSwatch, VStacks,
-            // custom checkmarks) are silently dropped, and the system draws
-            // its own checkmark on the selected item. So the menu holds plain
-            // theme names only; the live preview is rendered below the picker
-            // (ThemeSwatch is pointless inside the menu and caused the
-            // duplicate-checkmark + time-only-label bug).
-            Picker("Theme", selection: $store.theme) {
-                ForEach(Theme.allCases) { theme in
-                    Text(theme.displayName)
-                        .tag(theme)
-                }
-            }
-            .pickerStyle(.menu)
-
-            // Live preview of the currently selected theme.
-            HStack(spacing: 12) {
-                ThemeSwatch(theme: store.theme)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(store.theme.displayName)
-                        .font(.system(size: 13, weight: .medium))
-                    Text(themeDescription(store.theme))
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-            }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 8)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
         }
     }
 }
@@ -495,13 +564,53 @@ struct SettingsForm<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct SettingsPage<Content: View>: View {
+    let title: String
+    let subtitle: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(.system(size: 22, weight: .bold))
+                    Text(subtitle).font(.system(size: 11.5)).foregroundColor(.secondary)
+                }.padding(.bottom, 2)
                 content
             }
-            .padding(20)
+            // The Settings window uses a transparent full-size title bar. A
+            // fixed top inset keeps long, scrolled pages below the traffic
+            // lights/title-bar region on every supported macOS release.
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+            .padding(.top, 48)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+private struct SettingsSection<Content: View>: View {
+    let title: String
+    var isDestructive = false
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).font(.system(size: 12, weight: .semibold))
+                .foregroundColor(isDestructive ? .red : .secondary)
+            content
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.72)))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .stroke(isDestructive ? Color.red.opacity(0.2) : Color.primary.opacity(0.07), lineWidth: 1))
     }
 }
 
@@ -552,88 +661,5 @@ private struct CategoryAbout: View {
         let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
         return "Version \(short) (\(build))"
-    }
-}
-
-// MARK: - Theme picker helpers
-
-func themeDescription(_ theme: Theme) -> String {
-    switch theme {
-    case .minimal: return "White, hairline rows, compact"
-    case .glass: return "Frosted cards, generous spacing"
-    case .midnight: return "Dark with cyan accent"
-    case .editorial: return "Serif type, lots of whitespace"
-    }
-}
-
-struct ThemeSwatch: View {
-    @EnvironmentObject var store: TimeZoneStore
-    let theme: Theme
-
-    /// Show the real current time (via the cached formatter) instead of a
-    /// hardcoded "01:42" placeholder. Uses store.now so the preview keeps up
-    /// with the minute tick like the real panel does.
-    private var timeText: String {
-        TimeZoneStore.cachedFormatter(format: "HH:mm").string(from: store.now)
-    }
-
-    var body: some View {
-        ZStack {
-            // Background surface per theme
-            RoundedRectangle(cornerRadius: 6)
-                .fill(bgColor)
-                .frame(width: 44, height: 44)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(borderColor, lineWidth: 0.5)
-                )
-            // Mini "dial" ring (matches real panel's accent ring)
-            Circle()
-                .stroke(accentColor, lineWidth: 2)
-                .frame(width: 30, height: 30)
-            // Mini time text in theme's typography
-            Text(timeText)
-                .font(.system(size: 11, weight: .semibold, design: previewDesign))
-                .monospacedDigit()
-                .foregroundColor(textColor)
-        }
-    }
-
-    private var previewDesign: Font.Design {
-        // Editorial is the only theme that uses serif for the time display.
-        theme == .editorial ? .serif : .rounded
-    }
-
-    private var bgColor: Color {
-        switch theme {
-        case .minimal: return Color(hex: "#FFFFFF")
-        case .glass: return Color(hex: "#F5F7FA")
-        case .midnight: return Color(hex: "#1C1C1E")
-        case .editorial: return Color(hex: "#FAFAF8")
-        }
-    }
-
-    private var borderColor: Color {
-        switch theme {
-        case .minimal: return Color(hex: "#E5E5EA")
-        case .glass: return Color(hex: "#E0E6ED")
-        case .midnight: return Color(hex: "#3A3A3C")
-        case .editorial: return Color(hex: "#E2E2DC")
-        }
-    }
-
-    private var textColor: Color {
-        switch theme {
-        case .midnight: return Color(hex: "#F5F5F7")
-        default: return Color(hex: "#1D1D1F")
-        }
-    }
-
-    private var accentColor: Color {
-        switch theme {
-        case .minimal, .glass: return Color(hex: "#0A84FF")
-        case .midnight: return Color(hex: "#64D2FF")
-        case .editorial: return Color(hex: "#C41E3A")
-        }
     }
 }

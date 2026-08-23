@@ -28,42 +28,10 @@ enum ZoneSwitchError: LocalizedError {
 /// never leave a dangling osascript around.
 enum PrivilegedRunner {
     static func run(script: String, timeout: TimeInterval = 15) async throws {
-        let (status, output) = await Task.detached(priority: .userInitiated) { () -> (Int32, String) in
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-            process.arguments = ["-e", script]
-            let pipe = Pipe()
-            process.standardOutput = pipe
-            process.standardError = pipe
-
-            do {
-                try process.run()
-            } catch {
-                return (-1, "launch failed: \(error.localizedDescription)")
-            }
-
-            // Blocking read runs on this background thread — the main thread
-            // stays responsive while the admin dialog is up.
-            let queue = DispatchQueue(label: "tzbar.osascript", qos: .userInitiated)
-            var output = ""
-            var status: Int32 = -1
-            let sema = DispatchSemaphore(value: 0)
-            queue.async {
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                output = String(data: data, encoding: .utf8) ?? ""
-                process.waitUntilExit()
-                status = process.terminationStatus
-                sema.signal()
-            }
-            // Wait with a hard cap; terminate the child if the user never
-            // answers the authorization dialog.
-            if sema.wait(timeout: .now() + timeout) == .timedOut {
-                process.terminate()
-                _ = sema.wait(timeout: .now() + 2)   // give it a moment to clean up
-                return (-2, "Timed out waiting for authorization")
-            }
-            return (status, output)
+        let result = await Task.detached(priority: .userInitiated) {
+            runBlocking(script: script, timeout: timeout)
         }.value
+        let (status, output) = result
 
         if status == -1 {
             throw ZoneSwitchError.scriptUnavailable
@@ -80,6 +48,38 @@ enum PrivilegedRunner {
             }
             throw ZoneSwitchError.adminRejected(output)
         }
+    }
+
+    /// Synchronous by design: it runs only inside a detached task. Keeping the
+    /// blocking Process API out of an async context avoids Swift 6 executor
+    /// starvation warnings while a DispatchWorkItem enforces the hard timeout.
+    private static func runBlocking(script: String, timeout: TimeInterval) -> (Int32, String) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        do { try process.run() }
+        catch { return (-1, "launch failed: \(error.localizedDescription)") }
+
+        let lock = NSLock()
+        var timedOut = false
+        let timeoutWork = DispatchWorkItem {
+            guard process.isRunning else { return }
+            lock.lock(); timedOut = true; lock.unlock()
+            process.terminate()
+        }
+        DispatchQueue.global(qos: .userInitiated)
+            .asyncAfter(deadline: .now() + timeout, execute: timeoutWork)
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        timeoutWork.cancel()
+        lock.lock(); let didTimeOut = timedOut; lock.unlock()
+        if didTimeOut { return (-2, "Timed out waiting for authorization") }
+        return (process.terminationStatus, String(data: data, encoding: .utf8) ?? "")
     }
 }
 

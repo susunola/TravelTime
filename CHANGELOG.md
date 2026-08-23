@@ -5,6 +5,189 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.13] — 2026-08-23
+
+### Changed
+- Tightened the title-bar safe inset from 26 to 16 points, reducing excess
+  space above the clock while keeping it clear of native traffic lights.
+- Reduced matching panel-height baselines so the reclaimed space is not moved
+  to the bottom of the window.
+
+## [1.8.12] — 2026-08-23
+
+### Changed
+- Reduced the empty calendar panel baseline to remove excess space above the
+  shared footer while preserving the complete month grid.
+- Calendar height now adds the first holiday-detail allowance only when a
+  selected day actually has an event.
+
+## [1.8.11] — 2026-08-23
+
+### Fixed
+- Meeting Planner now scrolls only inside the shared content region, preventing
+  longer zone lists from pushing into or changing the global footer.
+- World Clocks, Calendar, and Meeting Planner now retain the same footer
+  divider, spacing, and bottom inset as the home tab.
+
+## [1.8.10] — 2026-08-23
+
+### Fixed
+- Switched panel scroll views to the explicit no-indicator initializer so the
+  macOS “Always show scroll bars” preference cannot add a visible track or
+  cover the right side of world-clock rows.
+
+## [1.8.9] — 2026-08-23
+
+### Fixed
+- Included the title-bar safe inset in panel sizing so the footer is never
+  clipped by the bottom window edge.
+- Protected the footer from vertical compression and retained invisible
+  fallback scrolling for displays with limited available height.
+
+## [1.8.8] — 2026-08-23
+
+### Added
+- Added concise Chinese context below every bundled public holiday so users
+  can understand what it commemorates or how it is traditionally observed.
+
+### Changed
+- Calendar detail height now accounts for the explanatory text without
+  crowding or clipping event rows.
+
+## [1.8.7] — 2026-08-23
+
+### Fixed
+- Five-zone world-clock lists now include enough height for every zone and the
+  Add time zone row without showing a scrollbar.
+- Short world-clock lists no longer use a scroll container; longer lists keep
+  scrolling with the visual indicator hidden.
+
+## [1.8.6] — 2026-08-23
+
+### Changed
+- Added stable, low-saturation colors for each bundled holiday region.
+- Calendar days show up to three region-colored dots when holidays overlap.
+- Holiday detail markers and Settings toggles now reuse the same region color.
+
+## [1.8.5] — 2026-08-23
+
+### Fixed
+- Calendar mode now opens tall enough to show the complete month grid and one
+  event (or empty-state) row by default.
+- Additional event rows expand the panel before scrolling is used.
+
+## [1.8.4] — 2026-08-23
+
+### Fixed
+- Reserved a precise traffic-light safe area so the clock no longer overlaps
+  native window controls without restoring the former oversized blank space.
+- Removed the fixed 760-point panel cap so selected holiday details can grow
+  the window to the actual screen boundary before scrolling.
+- Reverted flag and gold-ring row icons to a cohesive green/neutral SF Symbol
+  treatment.
+
+## [1.8.3] — 2026-08-23
+
+### Changed
+- Removed duplicate title-bar spacing and tightened the header inset, moving
+  the primary time content upward without adding visual clutter.
+
+## [1.8.2] — 2026-08-23
+
+### Fixed
+- The main window now grows automatically when a selected calendar day has
+  events, shrinks again when details disappear, and only scrolls after reaching
+  the available screen-height limit.
+
+## [1.8.1] — 2026-08-23
+
+### Changed
+- Replaced generic world-clock icons with country flags for faster scanning.
+- Highlighted the current system time zone with a restrained gold ring and
+  soft glow while keeping the existing green selection treatment.
+
+## [1.8.0] — 2026-08-23
+
+### Added
+- Explicit opt-in for periodic IP-based location detection, with provider and
+  behavior disclosure in Settings.
+- Offline holiday coverage metadata and an out-of-coverage warning.
+- Release-bundle verification and optional Apple notarization workflow.
+- Installer validation for bundle identity, version, executable, and signature.
+
+### Changed
+- Enabled holiday calendars refresh from the bundled catalogue at app launch.
+- Reduced the visual system to one real set of design tokens, removing all
+  retired theme state, branches, callbacks, and layout parameters.
+- App updates now keep a backup and restore it when replacement fails.
+
+### Privacy
+- TravelTime no longer contacts IP location providers at launch by default.
+
+## [1.7.2] — 2026-08-23
+
+### Fixed
+- Made the calendar panel independently scrollable and added breathing room
+  below event details, preventing holiday names and locations from crowding
+  the rounded window edge on shorter screens.
+
+## [1.7.1] — 2026-08-23
+
+### Changed
+- Removed the redundant theme picker and preview from Settings. TravelTime now
+  uses one consistent Minimal visual identity, including for upgraded users.
+- Improved Settings scrolling, title-bar clearance, holiday switch alignment,
+  and separation between imported ICS calendars and bundled holidays.
+
+## [1.7.0] — 2026-08-23
+
+### Added
+- Built-in 2026 public-holiday data for China, Hong Kong, Singapore, Malaysia,
+  and Thailand, including national substitute days where applicable.
+- Independent Settings switches for every bundled country and region.
+
+### Changed
+- Public holidays now work entirely offline and appear immediately when a
+  region is enabled. Malaysia currently includes federal holidays only.
+
+### Removed
+- Removed the timeanddate API client, credential fields, Keychain access,
+  network sync, account quotas, and country-policy restrictions.
+
+## [1.6.0] — 2026-08-23
+
+### Added
+- A three-mode panel for world clocks, the solar/lunar calendar, and an
+  interactive cross-time-zone meeting planner.
+- Configurable public-holiday sync through the official timeanddate Holiday
+  API. Users can select multiple countries, keep API credentials in macOS
+  Keychain, refresh the current and next year, and see cached holidays as
+  all-day events in the existing calendar.
+
+### Changed
+- Redesigned the current-time header with balanced time/location alignment,
+  a compact solar/lunar date row, and a lighter avatar/quote section.
+- Rebuilt the main panel with a compact warm-neutral visual system, custom
+  navigation, explicit city selection, and contextual time-zone switching.
+- Consolidated Settings from eight sparse destinations into four task-focused
+  pages: Preferences, Cities & Time Zones, Calendar & Holidays, and About.
+- Added independent reveal/hide controls for holiday API credentials and trim
+  accidental whitespace before saving copied keys.
+- Unified the main and Settings windows with transparent, full-content macOS
+  title bars while preserving native window controls.
+
+### Fixed
+- Handle JSON output, numeric holiday IDs, variable location fields, singular
+  and plural API error payloads from the timeanddate Holiday API.
+- Preserve successful holiday data when another country or year fails to sync,
+  and surface the provider's actual error instead of a generic decode failure.
+- Defer Keychain access until the holiday page is opened or a sync is started,
+  preventing credential prompts during an ordinary app launch.
+- Replace the privileged time-zone switcher's async semaphore wait with a
+  timeout-controlled background process that is safe under Swift 6.
+- Ensure a detected city is fully added before observers see a completed
+  system time-zone switch.
+
 ## [1.5.0] — 2026-08-23
 
 ### Changed
