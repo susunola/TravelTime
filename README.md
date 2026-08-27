@@ -9,12 +9,6 @@
 Track any number of cities at a glance, then select and confirm a new macOS
 system time zone when you land.
 
-[![CI](https://github.com/susunola/TravelTime/actions/workflows/ci.yml/badge.svg)](https://github.com/susunola/TravelTime/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/susunola/TravelTime?sort=semver)](https://github.com/susunola/TravelTime/releases)
-[![Platform](https://img.shields.io/badge/macOS-14.0%2B-black?logo=apple)](#requirements)
-[![Swift](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white)](https://swift.org)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-
 [Install](#install) · [Features](#features) · [Usage](#usage) · [Build](#build-from-source) · [How it works](#how-it-works) · [FAQ](#faq)
 
 </div>
